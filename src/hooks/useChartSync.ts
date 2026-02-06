@@ -7,6 +7,23 @@ export function useChartSync() {
   const currentRangeRef = useRef<LogicalRange | null>(null);
   const unsubscribersRef = useRef<Map<string, () => void>>(new Map());
 
+  // 获取指定图表的可见范围
+  const getVisibleRange = useCallback((id: string): LogicalRange | null => {
+    const timeScale = timeScalesRef.current.get(id);
+    if (timeScale) {
+      return timeScale.getVisibleLogicalRange();
+    }
+    return null;
+  }, []);
+
+  // 设置指定图表的可见范围
+  const setVisibleRange = useCallback((id: string, range: LogicalRange) => {
+    const timeScale = timeScalesRef.current.get(id);
+    if (timeScale) {
+      timeScale.setVisibleLogicalRange(range);
+    }
+  }, []);
+
   const syncAll = useCallback((sourceId: string) => {
     if (isSyncingRef.current) return;
     
@@ -85,5 +102,7 @@ export function useChartSync() {
   return {
     registerTimeScale,
     resetSync,
+    getVisibleRange,
+    setVisibleRange,
   };
 }

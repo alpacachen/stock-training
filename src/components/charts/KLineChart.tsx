@@ -154,8 +154,6 @@ export function KLineChart({ data, maData, maskIndex, showResult, onChartReady }
   }, [displayData, displayMaData, showResult, maskIndex]);
 
   return (
-    <div className="w-full h-full">
-      <div ref={chartContainerRef} className="w-full h-[400px]" />
-    </div>
+    <div ref={chartContainerRef} className="w-full h-full" />
   );
 }

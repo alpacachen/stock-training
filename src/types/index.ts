@@ -28,6 +28,25 @@ export interface MacdDataItem {
   macd: number;
 }
 
+export interface RsiDataItem {
+  time: number;
+  value: number;
+}
+
+export interface BollDataItem {
+  time: number;
+  upper: number;
+  middle: number;
+  lower: number;
+}
+
+export interface KdjDataItem {
+  time: number;
+  k: number;
+  d: number;
+  j: number;
+}
+
 // Chart related types
 export type PredictionDirection = 'up' | 'down';
 

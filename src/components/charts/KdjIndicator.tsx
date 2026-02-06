@@ -1,20 +1,20 @@
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, type IChartApi, type ISeriesApi, LineSeries, HistogramSeries } from 'lightweight-charts';
-import type { MacdDataItem } from '../../types';
+import { createChart, ColorType, type IChartApi, type ISeriesApi, LineSeries } from 'lightweight-charts';
+import type { KdjDataItem } from '../../types';
 
-interface MacdIndicatorProps {
-  data: MacdDataItem[];
+interface KdjIndicatorProps {
+  data: KdjDataItem[];
   maskIndex: number;
   showResult: boolean;
   onChartReady?: (chart: IChartApi, timeScale: ReturnType<IChartApi['timeScale']>) => void;
 }
 
-export function MacdIndicator({ data, maskIndex, showResult, onChartReady }: MacdIndicatorProps) {
+export function KdjIndicator({ data, maskIndex, showResult, onChartReady }: KdjIndicatorProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const difRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const deaRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const macdRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const kRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const dRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const jRef = useRef<ISeriesApi<'Line'> | null>(null);
 
   const displayData = showResult ? data : data.slice(0, maskIndex);
 
@@ -38,15 +38,15 @@ export function MacdIndicator({ data, maskIndex, showResult, onChartReady }: Mac
       },
     });
 
-    const difSeries = chart.addSeries(LineSeries, {
-      color: '#00f0ff',
+    const kSeries = chart.addSeries(LineSeries, {
+      color: '#3b82f6',
       lineWidth: 2,
       crosshairMarkerVisible: false,
       priceLineVisible: false,
       lastValueVisible: false,
     });
 
-    const deaSeries = chart.addSeries(LineSeries, {
+    const dSeries = chart.addSeries(LineSeries, {
       color: '#f59e0b',
       lineWidth: 2,
       crosshairMarkerVisible: false,
@@ -54,26 +54,25 @@ export function MacdIndicator({ data, maskIndex, showResult, onChartReady }: Mac
       lastValueVisible: false,
     });
 
-    const macdSeries = chart.addSeries(HistogramSeries, {
-      priceFormat: {
-        type: 'custom',
-        minMove: 0.0001,
-      },
+    const jSeries = chart.addSeries(LineSeries, {
+      color: '#ef4444',
+      lineWidth: 2,
+      crosshairMarkerVisible: false,
       priceLineVisible: false,
       lastValueVisible: false,
     });
 
-    macdSeries.priceScale().applyOptions({
+    kSeries.priceScale().applyOptions({
       scaleMargins: {
         top: 0.1,
-        bottom: 0,
+        bottom: 0.1,
       },
     });
 
     chartRef.current = chart;
-    difRef.current = difSeries;
-    deaRef.current = deaSeries;
-    macdRef.current = macdSeries;
+    kRef.current = kSeries;
+    dRef.current = dSeries;
+    jRef.current = jSeries;
 
     if (onChartReady) {
       onChartReady(chart, chart.timeScale());
@@ -85,28 +84,33 @@ export function MacdIndicator({ data, maskIndex, showResult, onChartReady }: Mac
   }, [onChartReady]);
 
   useEffect(() => {
-    if (!difRef.current || !deaRef.current || !macdRef.current) return;
+    if (!kRef.current || !dRef.current || !jRef.current) return;
 
-    difRef.current.setData(
-      displayData.filter(d => d.time).map((d) => ({
-        time: d.time as unknown as Parameters<typeof difRef.current.setData>[0][number]['time'],
-        value: d.dif,
-      }))
+    kRef.current.setData(
+      displayData
+        .filter(d => d.k !== null && !Number.isNaN(d.k))
+        .map((d) => ({
+          time: d.time as unknown as Parameters<typeof kRef.current.setData>[0][number]['time'],
+          value: d.k,
+        }))
     );
 
-    deaRef.current.setData(
-      displayData.filter(d => d.time).map((d) => ({
-        time: d.time as unknown as Parameters<typeof deaRef.current.setData>[0][number]['time'],
-        value: d.dea,
-      }))
+    dRef.current.setData(
+      displayData
+        .filter(d => d.d !== null && !Number.isNaN(d.d))
+        .map((d) => ({
+          time: d.time as unknown as Parameters<typeof dRef.current.setData>[0][number]['time'],
+          value: d.d,
+        }))
     );
 
-    macdRef.current.setData(
-      displayData.filter(d => d.time).map((d) => ({
-        time: d.time as unknown as Parameters<typeof macdRef.current.setData>[0][number]['time'],
-        value: d.macd,
-        color: d.macd >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)',
-      }))
+    jRef.current.setData(
+      displayData
+        .filter(d => d.j !== null && !Number.isNaN(d.j))
+        .map((d) => ({
+          time: d.time as unknown as Parameters<typeof jRef.current.setData>[0][number]['time'],
+          value: d.j,
+        }))
     );
 
     if (chartRef.current) {
