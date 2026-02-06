@@ -1,33 +1,53 @@
 import type { StockInfo } from '../types';
+import sseStocksData from './sse-stocks.json';
 
-export const STOCK_POOL: StockInfo[] = [
-  { code: '600519', name: '贵州茅台', industry: '酿酒食品' },
-  { code: '000001', name: '平安银行', industry: '银行' },
-  { code: '600036', name: '招商银行', industry: '银行' },
-  { code: '601398', name: '工商银行', industry: '银行' },
-  { code: '600000', name: '浦发银行', industry: '银行' },
-  { code: '600015', name: '华夏银行', industry: '银行' },
-  { code: '600016', name: '民生银行', industry: '银行' },
-  { code: '600030', name: '中信证券', industry: '证券' },
-  { code: '600050', name: '中国联通', industry: '通信' },
-  { code: '600276', name: '恒瑞医药', industry: '医药' },
-  { code: '600887', name: '伊利股份', industry: '酿酒食品' },
-  { code: '600900', name: '长江电力', industry: '电力' },
-  { code: '601988', name: '中国银行', industry: '银行' },
-  { code: '600028', name: '中国石化', industry: '石油石化' },
-  { code: '601857', name: '中国石油', industry: '石油石化' },
-  { code: '600050', name: '中国联通', industry: '通信' },
-  { code: '600522', name: '中天科技', industry: '科技' },
-  { code: '600703', name: '三安光电', industry: '电子' },
-  { code: '000725', name: '京东方A', industry: '电子' },
-  { code: '600460', name: '士兰微', industry: '电子' },
-];
+/**
+ * 上交所股票池（包含主板和科创板）
+ * 从 sse-stocks.json 加载，共 2304 只股票
+ */
+export const STOCK_POOL: StockInfo[] = sseStocksData.stocks.map(stock => ({
+  code: stock.code,
+  name: stock.name,
+  industry: stock.type, // 使用 type (主板/科创板) 作为 industry
+}));
 
+/**
+ * 获取随机股票
+ * 从 2304 只上交所股票中随机选择一只
+ */
 export function getRandomStock(): StockInfo {
   const index = Math.floor(Math.random() * STOCK_POOL.length);
   return STOCK_POOL[index];
 }
 
+/**
+ * 根据代码获取股票信息
+ */
 export function getStockInfo(code: string): StockInfo | undefined {
   return STOCK_POOL.find(stock => stock.code === code);
+}
+
+/**
+ * 获取所有主板股票
+ */
+export function getMainBoardStocks(): StockInfo[] {
+  return STOCK_POOL.filter(stock => stock.industry === '主板');
+}
+
+/**
+ * 获取所有科创板股票
+ */
+export function getKeChuangStocks(): StockInfo[] {
+  return STOCK_POOL.filter(stock => stock.industry === '科创板');
+}
+
+/**
+ * 获取股票池统计信息
+ */
+export function getStockPoolStats(): { total: number; mainBoard: number; keChuang: number } {
+  return {
+    total: STOCK_POOL.length,
+    mainBoard: getMainBoardStocks().length,
+    keChuang: getKeChuangStocks().length,
+  };
 }

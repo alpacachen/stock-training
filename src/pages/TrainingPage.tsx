@@ -10,7 +10,8 @@ import { BollIndicator } from '../components/charts/BollIndicator';
 import { KdjIndicator } from '../components/charts/KdjIndicator';
 import { getRandomStock } from '../data/stockPool';
 import type { StockInfo } from '../types';
-import { generateStockData, getMaskIndex } from '../data/mockData';
+import { fetchStockKLine } from '../services/stockApi';
+import { calculateIndicators, getMaskIndex } from '../services/indicators';
 import type { KLineData, MovingAverageData, MacdDataItem, RsiDataItem, BollDataItem, KdjDataItem } from '../types';
 import { useChartSync } from '../hooks/useChartSync';
 import { safeAsyncExecute } from '../utils/errorHandler';
@@ -30,6 +31,8 @@ export function TrainingPage() {
   const [currentPrice, setCurrentPrice] = useState<number>(0);
   const [priceChange, setPriceChange] = useState<number>(0);
   const [showIndicator, setShowIndicator] = useState<'volume' | 'macd' | 'rsi' | 'boll' | 'kdj'>('volume');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { registerTimeScale, resetSync, getVisibleRange, setVisibleRange } = useChartSync();
 
@@ -37,7 +40,6 @@ export function TrainingPage() {
   const handleIndicatorChange = useCallback((indicator: 'volume' | 'macd' | 'rsi' | 'boll' | 'kdj') => {
     const range = getVisibleRange('kline');
     setShowIndicator(indicator);
-    // 延迟恢复缩放范围，等待新图表组件初始化完成
     if (range) {
       setTimeout(() => {
         setVisibleRange(indicator, range);
@@ -45,30 +47,46 @@ export function TrainingPage() {
     }
   }, [getVisibleRange, setVisibleRange]);
 
-  const initTraining = useCallback((keepMaskPosition: boolean = true, currentMaskIndex?: number) => {
-    const stock = getRandomStock();
-    const { kLineData: data, macdData: macd, maData: ma, rsiData: rsi, bollData: boll, kdjData: kdj } = generateStockData(stock.code);
-    const mask = keepMaskPosition && currentMaskIndex !== undefined
-      ? currentMaskIndex
-      : getMaskIndex(200, 500);
+  const initTraining = useCallback(async (keepMaskPosition: boolean = true, currentMaskIndex?: number) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const stock = getRandomStock();
+      
+      // 从后端获取真实数据（直接返回数组）
+      const data = await fetchStockKLine(stock.code, 500);
+      
+      // 使用真实数据计算指标
+      const indicators = calculateIndicators(data);
 
-    setStockInfo(stock);
-    setKLineData(data);
-    setMacdData(macd);
-    setRsiData(rsi);
-    setBollData(boll);
-    setKdjData(kdj);
-    setMaData(ma);
-    setMaskIndex(mask);
-    setShowResult(false);
-    setPrediction(null);
+      const mask = keepMaskPosition && currentMaskIndex !== undefined
+        ? currentMaskIndex
+        : getMaskIndex(200, data.length - 10);
 
-    // 重置图表同步
-    resetSync();
+      setStockInfo(stock);
+      setKLineData(data);
+      setMacdData(indicators.macdData);
+      setRsiData(indicators.rsiData);
+      setBollData(indicators.bollData);
+      setKdjData(indicators.kdjData);
+      setMaData(indicators.maData);
+      setMaskIndex(mask);
+      setShowResult(false);
+      setPrediction(null);
 
-    const current = data[mask]?.close || 0;
-    setCurrentPrice(current);
-    setPriceChange(0);
+      // 重置图表同步
+      resetSync();
+
+      const current = data[mask]?.close || 0;
+      setCurrentPrice(current);
+      setPriceChange(0);
+    } catch (err) {
+      console.error('初始化训练失败:', err);
+      setError('加载数据失败，请确保后端服务已启动 (npm run dev)');
+    } finally {
+      setIsLoading(false);
+    }
   }, [resetSync]);
 
   // 只在组件挂载时初始化一次
@@ -77,7 +95,7 @@ export function TrainingPage() {
     const init = async () => {
       await safeAsyncExecute(async () => {
         if (mounted) {
-          initTraining(false);
+          await initTraining(false);
         }
       }, undefined, 'TrainingPage.init');
     };
@@ -145,13 +163,20 @@ export function TrainingPage() {
               </div>
             </div>
             <div className="h-6 w-px bg-white/10" />
-            <Button variant="secondary" size="sm" onClick={handleNewStock}>
-              <RefreshCcw className="w-4 h-4 mr-2" />
-              新股票
+            <Button variant="secondary" size="sm" onClick={handleNewStock} disabled={isLoading}>
+              <RefreshCcw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? "加载中..." : "新股票"}
             </Button>
           </div>
         </div>
       </header>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-danger/10 border border-danger/20 text-danger px-4 py-2 text-sm text-center">
+          {error}
+        </div>
+      )}
 
       {/* Main Content - 自适应高度 */}
       <div className="flex-1 flex flex-col p-4 gap-3 min-h-0">
