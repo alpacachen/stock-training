@@ -1,119 +1,133 @@
-import { useEffect, useRef } from 'react';
-import { createChart, ColorType, CrosshairMode, type IChartApi, type ISeriesApi, CandlestickSeries, LineSeries } from 'lightweight-charts';
-import type { KLineData, MovingAverageData } from '../../types';
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { useAtomValue, useSetAtom } from 'jotai';
+import {
+  CandlestickSeries,
+  LineSeries,
+  type ISeriesApi,
+  type LogicalRange,
+} from 'lightweight-charts';
+import { useChart } from '../../hooks/useChart';
+import { displayKLineAtom, displayMaAtom, totalBarsAtom } from '../../store/trainingAtoms';
+import { crosshairBarAtom, crosshairMaAtom, crosshairIndicatorAtom } from '../../store/chartAtoms';
+import { OhlcOverlay } from './OhlcOverlay';
+import { IndicatorTabs } from '../IndicatorTabs';
+import { IndicatorChart } from './IndicatorChart';
+import type { MovingAverageData } from '../../types';
 
-interface KLineChartProps {
-  data: KLineData[];
-  maData: MovingAverageData[];
-  maskIndex: number;
-  showResult: boolean;
-  onChartReady?: (chart: IChartApi, timeScale: ReturnType<IChartApi['timeScale']>) => void;
-}
+const LINE_SERIES_DEFAULTS = {
+  lineWidth: 1 as const,
+  crosshairMarkerVisible: false,
+  lastValueVisible: false,
+  priceLineVisible: false,
+};
 
-export function KLineChart({ data, maData, maskIndex, showResult, onChartReady }: KLineChartProps) {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
+export function KLineChart() {
+  const { containerRef, chartRef } = useChart();
+
+  const displayData = useAtomValue(displayKLineAtom);
+  const displayMaData = useAtomValue(displayMaAtom);
+  const totalBars = useAtomValue(totalBarsAtom);
+  const setCrosshairBar = useSetAtom(crosshairBarAtom);
+  const setCrosshairMa = useSetAtom(crosshairMaAtom);
+  const crosshairIndicator = useAtomValue(crosshairIndicatorAtom);
+
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const ma5Ref = useRef<ISeriesApi<'Line'> | null>(null);
   const ma10Ref = useRef<ISeriesApi<'Line'> | null>(null);
   const ma20Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  const prevTotalBarsRef = useRef<number>(0);
+  const displayDataRef = useRef(displayData);
+  displayDataRef.current = displayData;
+  const [indicatorTop, setIndicatorTop] = useState<number | null>(null);
 
-  const displayData = showResult ? data : data.slice(0, maskIndex);
-  const displayMaData = showResult ? maData : maData.slice(0, maskIndex);
-
-  useEffect(() => {
-    if (!chartContainerRef.current) return;
-
-    const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#64748b',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
-      },
-      crosshair: {
-        mode: CrosshairMode.Normal,
-        vertLine: {
-          width: 1,
-          color: 'rgba(0, 240, 255, 0.3)',
-          style: 2,
-        },
-        horzLine: {
-          width: 1,
-          color: 'rgba(0, 240, 255, 0.3)',
-          style: 2,
-        },
-      },
-      rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-      },
-      timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        timeVisible: true,
-        secondsVisible: false,
-      },
-    });
-
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10b981',
-      downColor: '#ef4444',
-      borderUpColor: '#10b981',
-      borderDownColor: '#ef4444',
-      wickUpColor: '#10b981',
-      wickDownColor: '#ef4444',
-      priceLineVisible: false,
-      lastValueVisible: false,
-    });
-
-    const ma5Series = chart.addSeries(LineSeries, {
-      color: '#ffffff',
-      lineWidth: 1,
-      crosshairMarkerVisible: false,
-      lastValueVisible: false,
-      priceLineVisible: false,
-    });
-
-    const ma10Series = chart.addSeries(LineSeries, {
-      color: '#fbbf24',
-      lineWidth: 1,
-      crosshairMarkerVisible: false,
-      lastValueVisible: false,
-      priceLineVisible: false,
-    });
-
-    const ma20Series = chart.addSeries(LineSeries, {
-      color: '#a855f7',
-      lineWidth: 1,
-      crosshairMarkerVisible: false,
-      lastValueVisible: false,
-      priceLineVisible: false,
-    });
-
-    chart.timeScale().fitContent();
-
-    chartRef.current = chart;
-    seriesRef.current = candlestickSeries;
-    ma5Ref.current = ma5Series;
-    ma10Ref.current = ma10Series;
-    ma20Ref.current = ma20Series;
-
-    if (onChartReady) {
-      onChartReady(chart, chart.timeScale());
+  // Track pane 0 height changes to position indicator tabs near the separator
+  const updateIndicatorTop = useCallback(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const panes = chart.panes();
+    if (panes.length > 1) {
+      setIndicatorTop(panes[0].getHeight() + 4);
     }
+  }, [chartRef]);
+
+  // Create series + subscribe crosshair
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    seriesRef.current = chart.addSeries(CandlestickSeries, {
+      upColor: '#ef4444',
+      downColor: '#10b981',
+      borderUpColor: '#ef4444',
+      borderDownColor: '#10b981',
+      wickUpColor: '#ef4444',
+      wickDownColor: '#10b981',
+      priceLineVisible: false,
+      lastValueVisible: false,
+    });
+    ma5Ref.current = chart.addSeries(LineSeries, { ...LINE_SERIES_DEFAULTS, color: '#ffffff' });
+    ma10Ref.current = chart.addSeries(LineSeries, { ...LINE_SERIES_DEFAULTS, color: '#fbbf24' });
+    ma20Ref.current = chart.addSeries(LineSeries, { ...LINE_SERIES_DEFAULTS, color: '#a855f7' });
+
+    const handleCrosshairMove = (param: { seriesData: Map<unknown, unknown>; logical?: number }) => {
+      if (!seriesRef.current) return;
+      const data = param.seriesData.get(seriesRef.current) as
+        | { open: number; high: number; low: number; close: number }
+        | undefined;
+      if (data && param.logical != null) {
+        const prevIndex = param.logical - 1;
+        const prevBar = prevIndex >= 0 ? displayDataRef.current[prevIndex] : null;
+        setCrosshairBar({ ...data, prevClose: prevBar?.close ?? null });
+      } else {
+        setCrosshairBar(null);
+      }
+
+      const getMaValue = (ref: ISeriesApi<'Line'> | null) => {
+        if (!ref) return null;
+        const d = param.seriesData.get(ref) as { value: number } | undefined;
+        return d?.value ?? null;
+      };
+      if (data) {
+        setCrosshairMa({
+          ma5: getMaValue(ma5Ref.current),
+          ma10: getMaValue(ma10Ref.current),
+          ma20: getMaValue(ma20Ref.current),
+        });
+      } else {
+        setCrosshairMa(null);
+      }
+    };
+
+    chart.subscribeCrosshairMove(handleCrosshairMove);
+
+    // Track pane separator position via MutationObserver on the chart container
+    const container = containerRef.current;
+    let observer: MutationObserver | null = null;
+    if (container) {
+      observer = new MutationObserver(updateIndicatorTop);
+      observer.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+    }
+    // Initial position update
+    requestAnimationFrame(updateIndicatorTop);
 
     return () => {
-      chart.remove();
+      observer?.disconnect();
+      chart.unsubscribeCrosshairMove(handleCrosshairMove);
+      seriesRef.current = null;
+      ma5Ref.current = null;
+      ma10Ref.current = null;
+      ma20Ref.current = null;
     };
-  }, [onChartReady]);
+  }, [chartRef, setCrosshairBar, setCrosshairMa, containerRef, updateIndicatorTop]);
 
+  // Update data + manage visible range
   useEffect(() => {
-    if (!seriesRef.current || !ma5Ref.current || !ma10Ref.current || !ma20Ref.current) return;
+    const chart = chartRef.current;
+    if (!chart || !seriesRef.current || !ma5Ref.current || !ma10Ref.current || !ma20Ref.current) return;
 
     seriesRef.current.setData(
-      displayData.map((d) => ({
-        time: d.time as unknown as Parameters<typeof seriesRef.current.setData>[0][number]['time'],
+      displayData.map(d => ({
+        time: d.time,
         open: d.open,
         high: d.high,
         low: d.low,
@@ -121,39 +135,59 @@ export function KLineChart({ data, maData, maskIndex, showResult, onChartReady }
       }))
     );
 
-    ma5Ref.current.setData(
-      displayMaData
-        .filter(d => d.ma5 !== null && !Number.isNaN(d.ma5))
-        .map((d) => ({
-          time: d.time as unknown as Parameters<typeof ma5Ref.current.setData>[0][number]['time'],
-          value: d.ma5!,
-        }))
-    );
+    const setMaData = (series: ISeriesApi<'Line'>, getter: (d: MovingAverageData) => number | null) => {
+      series.setData(
+        displayMaData
+          .filter(d => getter(d) !== null && !Number.isNaN(getter(d)))
+          .map(d => ({ time: d.time, value: getter(d)! }))
+      );
+    };
 
-    ma10Ref.current.setData(
-      displayMaData
-        .filter(d => d.ma10 !== null && !Number.isNaN(d.ma10))
-        .map((d) => ({
-          time: d.time as unknown as Parameters<typeof ma10Ref.current.setData>[0][number]['time'],
-          value: d.ma10!,
-        }))
-    );
+    setMaData(ma5Ref.current, d => d.ma5);
+    setMaData(ma10Ref.current, d => d.ma10);
+    setMaData(ma20Ref.current, d => d.ma20);
 
-    ma20Ref.current.setData(
-      displayMaData
-        .filter(d => d.ma20 !== null && !Number.isNaN(d.ma20))
-        .map((d) => ({
-          time: d.time as unknown as Parameters<typeof ma20Ref.current.setData>[0][number]['time'],
-          value: d.ma20!,
-        }))
-    );
-
-    if (chartRef.current) {
-      chartRef.current.timeScale().fitContent();
+    // Set default range on new stock load (totalBars changed significantly)
+    if (totalBars > 0 && Math.abs(totalBars - prevTotalBarsRef.current) > 1) {
+      const barsToShow = Math.min(50, totalBars);
+      const rightEdge = totalBars - 1;
+      const leftEdge = rightEdge - barsToShow + 1;
+      chart.timeScale().setVisibleLogicalRange({
+        from: leftEdge as unknown as LogicalRange['from'],
+        to: rightEdge as unknown as LogicalRange['to'],
+      });
     }
-  }, [displayData, displayMaData, showResult, maskIndex]);
+    prevTotalBarsRef.current = totalBars;
+  }, [displayData, displayMaData, totalBars, chartRef]);
 
   return (
-    <div ref={chartContainerRef} className="w-full h-full" />
+    <div className="relative w-full h-full">
+      <div ref={containerRef} className="w-full h-full" />
+      {/* OHLC overlay on K-line pane */}
+      <OhlcOverlay />
+      {/* Indicator tabs overlay on indicator pane, positioned near separator */}
+      {indicatorTop !== null && (
+        <>
+          <div className="absolute left-2 z-10" style={{ top: indicatorTop }}>
+            <IndicatorTabs />
+          </div>
+          {crosshairIndicator && (
+            <div
+              className="absolute right-14 z-10 flex items-center gap-3 text-xs font-mono pointer-events-none"
+              style={{ top: indicatorTop }}
+            >
+              {crosshairIndicator.items.map(({ label, color, value }) => (
+                <span key={label}>
+                  <span className="text-white/60">{label}</span>{' '}
+                  <span style={{ color }}>{value.toFixed(2)}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {/* Headless: manages series in pane 1 */}
+      <IndicatorChart />
+    </div>
   );
 }

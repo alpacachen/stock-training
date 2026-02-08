@@ -1,3 +1,5 @@
+import type { UTCTimestamp } from 'lightweight-charts';
+
 // Stock related types
 export interface StockInfo {
   code: string;
@@ -6,7 +8,7 @@ export interface StockInfo {
 }
 
 export interface KLineData {
-  time: number;  // Unix timestamp in seconds
+  time: UTCTimestamp;
   open: number;
   high: number;
   low: number;
@@ -15,52 +17,45 @@ export interface KLineData {
 }
 
 export interface MovingAverageData {
-  time: number;
+  time: UTCTimestamp;
   ma5: number | null;
   ma10: number | null;
   ma20: number | null;
 }
 
 export interface MacdDataItem {
-  time: number;
+  time: UTCTimestamp;
   dif: number;
   dea: number;
   macd: number;
 }
 
 export interface RsiDataItem {
-  time: number;
+  time: UTCTimestamp;
   value: number;
 }
 
 export interface BollDataItem {
-  time: number;
+  time: UTCTimestamp;
   upper: number;
   middle: number;
   lower: number;
 }
 
 export interface KdjDataItem {
-  time: number;
+  time: UTCTimestamp;
   k: number;
   d: number;
   j: number;
 }
 
-// Chart related types
-export type PredictionDirection = 'up' | 'down';
-
-export interface ChartReadyCallback {
-  (chart: any, timeScale: any): void;
+// Consolidated indicator data
+export interface IndicatorData {
+  maData: MovingAverageData[];
+  macdData: MacdDataItem[];
+  rsiData: RsiDataItem[];
+  bollData: BollDataItem[];
+  kdjData: KdjDataItem[];
 }
 
-// Button related types
-export interface ButtonProps {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
-  loading?: boolean;
-  children: React.ReactNode;
-  className?: string;
-  disabled?: boolean;
-  onClick?: () => void;
-}
+export type IndicatorType = 'volume' | 'macd' | 'rsi' | 'boll' | 'kdj';

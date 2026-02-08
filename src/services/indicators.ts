@@ -1,26 +1,14 @@
 import { SMA, MACD, RSI, BollingerBands } from 'lightweight-charts-indicators';
-import type { KLineData, MovingAverageData, MacdDataItem, RsiDataItem, BollDataItem, KdjDataItem } from '../types';
+import type { KLineData, IndicatorData, KdjDataItem } from '../types';
 
-interface Bar {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
-
-/**
- * 计算 KDJ 指标
- */
 function calculateKDJ(data: KLineData[], n: number = 9, m1: number = 3, m2: number = 3): KdjDataItem[] {
-  const kdjData: KdjDataItem[] = [];
+  const result: KdjDataItem[] = [];
   let k = 50;
   let d = 50;
 
   for (let i = 0; i < data.length; i++) {
     if (i < n - 1) {
-      kdjData.push({ time: data[i].time, k: 50, d: 50, j: 50 });
+      result.push({ time: data[i].time, k: 50, d: 50, j: 50 });
       continue;
     }
 
@@ -39,7 +27,7 @@ function calculateKDJ(data: KLineData[], n: number = 9, m1: number = 3, m2: numb
     d = ((m2 - 1) * d + k) / m2;
     const j = 3 * k - 2 * d;
 
-    kdjData.push({
+    result.push({
       time: data[i].time,
       k: Number(k.toFixed(2)),
       d: Number(d.toFixed(2)),
@@ -47,62 +35,47 @@ function calculateKDJ(data: KLineData[], n: number = 9, m1: number = 3, m2: numb
     });
   }
 
-  return kdjData;
+  return result;
 }
 
-/**
- * 为K线数据计算技术指标
- * @param kLineData K线数据
- * @returns 计算后的所有指标数据
- */
-export function calculateIndicators(kLineData: KLineData[]): {
-  maData: MovingAverageData[];
-  macdData: MacdDataItem[];
-  rsiData: RsiDataItem[];
-  bollData: BollDataItem[];
-  kdjData: KdjDataItem[];
-} {
-  const bars: Bar[] = kLineData.map(d => ({
-    time: d.time,
-    open: d.open,
-    high: d.high,
-    low: d.low,
-    close: d.close,
-    volume: d.volume,
-  }));
-  
-  const ma5Result = SMA.calculate(bars, { len: 5, src: 'close' });
-  const ma10Result = SMA.calculate(bars, { len: 10, src: 'close' });
-  const ma20Result = SMA.calculate(bars, { len: 20, src: 'close' });
-  
-  const maData: MovingAverageData[] = kLineData.map((d, i) => ({
+export function calculateIndicators(kLineData: KLineData[]): IndicatorData {
+  const ma5Result = SMA.calculate(kLineData, { len: 5, src: 'close' });
+  const ma10Result = SMA.calculate(kLineData, { len: 10, src: 'close' });
+  const ma20Result = SMA.calculate(kLineData, { len: 20, src: 'close' });
+
+  const maData = kLineData.map((d, i) => ({
     time: d.time,
     ma5: ma5Result.plots.plot0[i]?.value ?? null,
     ma10: ma10Result.plots.plot0[i]?.value ?? null,
     ma20: ma20Result.plots.plot0[i]?.value ?? null,
   }));
-  
-  const macdResult = MACD.calculate(bars, { 
-    fastLength: 12, 
-    slowLength: 26, 
-    signalLength: 9 
+
+  const macdResult = MACD.calculate(kLineData, {
+    fastLength: 12,
+    slowLength: 26,
+    signalLength: 9,
   });
-  
-  const macdData: MacdDataItem[] = kLineData.map((d, i) => ({
-    time: d.time,
-    dif: macdResult.plots.plot0[i]?.value ?? 0,
-    dea: macdResult.plots.plot1[i]?.value ?? 0,
-    macd: macdResult.plots.plot2[i]?.value ?? 0,
-  }));
 
-  const rsiResult = RSI.calculate(bars, { length: 14, src: 'close' });
+  const macdData = kLineData.map((d, i) => {
+    const dif = macdResult.plots.plot0[i]?.value;
+    const dea = macdResult.plots.plot1[i]?.value;
+    const macd = macdResult.plots.plot2[i]?.value;
+    return {
+      time: d.time,
+      dif: (dif != null && !Number.isNaN(dif)) ? dif : 0,
+      dea: (dea != null && !Number.isNaN(dea)) ? dea : 0,
+      macd: (macd != null && !Number.isNaN(macd)) ? macd : 0,
+    };
+  });
 
-  const rsiData: RsiDataItem[] = kLineData.map((d, i) => ({
-    time: d.time,
-    value: rsiResult.plots.plot0[i]?.value ?? 50,
-  }));
+  const rsiResult = RSI.calculate(kLineData, { length: 14, src: 'close' });
 
-  const bollResult = BollingerBands.calculate(bars, {
+  const rsiData = kLineData.map((d, i) => {
+    const v = rsiResult.plots.plot0[i]?.value;
+    return { time: d.time, value: (v != null && !Number.isNaN(v)) ? v : 50 };
+  });
+
+  const bollResult = BollingerBands.calculate(kLineData, {
     length: 20,
     src: 'close',
     maType: 'SMA',
@@ -110,21 +83,23 @@ export function calculateIndicators(kLineData: KLineData[]): {
     offset: 0,
   });
 
-  const bollData: BollDataItem[] = kLineData.map((d, i) => ({
-    time: d.time,
-    upper: bollResult.plots.plot0[i]?.value ?? d.close,
-    middle: bollResult.plots.plot1[i]?.value ?? d.close,
-    lower: bollResult.plots.plot2[i]?.value ?? d.close,
-  }));
+  const bollData = kLineData.map((d, i) => {
+    const upper = bollResult.plots.plot0[i]?.value;
+    const middle = bollResult.plots.plot1[i]?.value;
+    const lower = bollResult.plots.plot2[i]?.value;
+    return {
+      time: d.time,
+      upper: (upper != null && !Number.isNaN(upper)) ? upper : d.close,
+      middle: (middle != null && !Number.isNaN(middle)) ? middle : d.close,
+      lower: (lower != null && !Number.isNaN(lower)) ? lower : d.close,
+    };
+  });
 
   const kdjData = calculateKDJ(kLineData);
 
   return { maData, macdData, rsiData, bollData, kdjData };
 }
 
-/**
- * 生成随机遮罩索引
- */
 export function getMaskIndex(min: number = 200, max: number = 500): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
