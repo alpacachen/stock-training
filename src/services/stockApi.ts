@@ -19,7 +19,7 @@ export async function fetchStockKLine(
   code: string,
   days: number = 500
 ): Promise<KLineData[]> {
-  const response = await fetch(`/api/stock/kline?code=${code}&days=${days}`);
+  const response = await fetch(`https://stock-server-eta.vercel.app/api/stock/kline?code=${code}&days=${days}`);
 
   if (!response.ok) {
     const error = await response.json();
