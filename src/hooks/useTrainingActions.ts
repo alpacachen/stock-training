@@ -38,9 +38,10 @@ export function useTrainingActions() {
 
     try {
       const stock = getRandomStock();
-      const data = await fetchStockKLine(stock.code, 500);
+      const data = await fetchStockKLine(stock.code, 800);
       const indicators = calculateIndicators(data);
-      const mi = getMaskIndex(200, data.length - 10);
+      const maxMask = data.length - 30;
+      const mi = getMaskIndex(Math.min(200, maxMask), maxMask);
       const price = data[mi]?.close || 0;
 
       setStockInfo(stock);

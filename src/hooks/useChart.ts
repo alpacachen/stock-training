@@ -39,12 +39,20 @@ const CHART_OPTIONS: DeepPartial<ChartOptions> = {
       return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
     },
   },
+  handleScroll: false,
+  handleScale: {
+    mouseWheel: true,
+    pinch: true,
+    axisPressedMouseMove: true,
+    axisDoubleClickReset: true,
+  },
   timeScale: {
     borderColor: 'rgba(255, 255, 255, 0.1)',
     timeVisible: true,
     secondsVisible: false,
     fixLeftEdge: true,
     fixRightEdge: true,
+    rightBarStaysOnScroll: true,
     tickMarkFormatter: ((time: Time) => {
       const date = new Date((time as number) * 1000);
       return `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;

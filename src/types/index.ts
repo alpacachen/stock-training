@@ -32,7 +32,9 @@ export interface MacdDataItem {
 
 export interface RsiDataItem {
   time: UTCTimestamp;
-  value: number;
+  rsi1: number;
+  rsi2: number;
+  rsi3: number;
 }
 
 export interface BollDataItem {

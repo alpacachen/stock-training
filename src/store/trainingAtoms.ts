@@ -33,41 +33,43 @@ export const errorAtom = atom<string | null>(null);
 
 // --- Derived atoms ---
 
+const REVEAL_BARS = 30;
+
 export const totalBarsAtom = atom<number>((get) => {
   const showResult = get(showResultAtom);
   const kLineData = get(kLineDataAtom);
   const maskIndex = get(maskIndexAtom);
-  return showResult ? kLineData.length : maskIndex;
+  return showResult ? Math.min(maskIndex + REVEAL_BARS, kLineData.length) : maskIndex;
 });
 
-function sliceByMask<T>(data: T[], maskIndex: number, showResult: boolean): T[] {
-  return showResult ? data : data.slice(0, maskIndex);
+function sliceByMask<T>(data: T[], maskIndex: number, showResult: boolean, total: number): T[] {
+  return showResult ? data.slice(0, total) : data.slice(0, maskIndex);
 }
 
 export const displayKLineAtom = atom<KLineData[]>((get) =>
-  sliceByMask(get(kLineDataAtom), get(maskIndexAtom), get(showResultAtom))
+  sliceByMask(get(kLineDataAtom), get(maskIndexAtom), get(showResultAtom), get(totalBarsAtom))
 );
 
 export const displayMaAtom = atom<MovingAverageData[]>((get) =>
-  sliceByMask(get(indicatorsAtom).maData, get(maskIndexAtom), get(showResultAtom))
+  sliceByMask(get(indicatorsAtom).maData, get(maskIndexAtom), get(showResultAtom), get(totalBarsAtom))
 );
 
 export const displayVolumeAtom = atom<KLineData[]>((get) =>
-  sliceByMask(get(kLineDataAtom), get(maskIndexAtom), get(showResultAtom))
+  sliceByMask(get(kLineDataAtom), get(maskIndexAtom), get(showResultAtom), get(totalBarsAtom))
 );
 
 export const displayMacdAtom = atom<MacdDataItem[]>((get) =>
-  sliceByMask(get(indicatorsAtom).macdData, get(maskIndexAtom), get(showResultAtom))
+  sliceByMask(get(indicatorsAtom).macdData, get(maskIndexAtom), get(showResultAtom), get(totalBarsAtom))
 );
 
 export const displayRsiAtom = atom<RsiDataItem[]>((get) =>
-  sliceByMask(get(indicatorsAtom).rsiData, get(maskIndexAtom), get(showResultAtom))
+  sliceByMask(get(indicatorsAtom).rsiData, get(maskIndexAtom), get(showResultAtom), get(totalBarsAtom))
 );
 
 export const displayBollAtom = atom<BollDataItem[]>((get) =>
-  sliceByMask(get(indicatorsAtom).bollData, get(maskIndexAtom), get(showResultAtom))
+  sliceByMask(get(indicatorsAtom).bollData, get(maskIndexAtom), get(showResultAtom), get(totalBarsAtom))
 );
 
 export const displayKdjAtom = atom<KdjDataItem[]>((get) =>
-  sliceByMask(get(indicatorsAtom).kdjData, get(maskIndexAtom), get(showResultAtom))
+  sliceByMask(get(indicatorsAtom).kdjData, get(maskIndexAtom), get(showResultAtom), get(totalBarsAtom))
 );

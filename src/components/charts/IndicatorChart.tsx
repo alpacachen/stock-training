@@ -28,12 +28,14 @@ const SERIES_META: Record<IndicatorType, { label: string; color: string }[]> = {
     { label: 'MACD', color: '#ffffff' },
   ],
   rsi: [
-    { label: 'RSI', color: '#3b82f6' },
+    { label: 'RSI1(6)', color: '#3b82f6' },
+    { label: 'RSI2(12)', color: '#f59e0b' },
+    { label: 'RSI3(24)', color: '#ef4444' },
   ],
   boll: [
-    { label: 'UP', color: '#f59e0b' },
+    { label: 'UPPER', color: '#f59e0b' },
     { label: 'MID', color: '#ffffff' },
-    { label: 'LOW', color: '#f59e0b' },
+    { label: 'LOWER', color: '#e879f9' },
   ],
   kdj: [
     { label: 'K', color: '#3b82f6' },
@@ -72,12 +74,20 @@ function createSeries(chart: IChartApi, indicator: IndicatorType): ManagedSeries
       return [dif, dea, macdHist];
     }
     case 'rsi': {
-      const s = chart.addSeries(LineSeries, {
+      const rsi1 = chart.addSeries(LineSeries, {
         color: '#3b82f6', lineWidth: 2,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
       }, INDICATOR_PANE);
-      s.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
-      return [s];
+      const rsi2 = chart.addSeries(LineSeries, {
+        color: '#f59e0b', lineWidth: 2,
+        crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
+      }, INDICATOR_PANE);
+      const rsi3 = chart.addSeries(LineSeries, {
+        color: '#ef4444', lineWidth: 2,
+        crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
+      }, INDICATOR_PANE);
+      rsi1.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
+      return [rsi1, rsi2, rsi3];
     }
     case 'boll': {
       const upper = chart.addSeries(LineSeries, {
@@ -89,7 +99,7 @@ function createSeries(chart: IChartApi, indicator: IndicatorType): ManagedSeries
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
       }, INDICATOR_PANE);
       const lower = chart.addSeries(LineSeries, {
-        color: '#f59e0b', lineWidth: 1,
+        color: '#e879f9', lineWidth: 1,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
       }, INDICATOR_PANE);
       upper.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
@@ -201,7 +211,9 @@ export function IndicatorChart() {
         );
         break;
       case 'rsi':
-        series[0].setData(rsiData.map(d => ({ time: d.time, value: d.value })));
+        series[0].setData(rsiData.map(d => ({ time: d.time, value: d.rsi1 })));
+        series[1].setData(rsiData.map(d => ({ time: d.time, value: d.rsi2 })));
+        series[2].setData(rsiData.map(d => ({ time: d.time, value: d.rsi3 })));
         break;
       case 'boll':
         series[0].setData(bollData.map(d => ({ time: d.time, value: d.upper })));
