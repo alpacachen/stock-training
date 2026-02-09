@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom, type PrimitiveAtom } from 'jotai';
 import {
   LineSeries,
   HistogramSeries,
@@ -18,7 +18,11 @@ import {
 } from '../../store/trainingAtoms';
 import type { IndicatorType } from '../../types';
 
-const INDICATOR_PANE = 1;
+interface IndicatorChartProps {
+  paneIndex?: number;
+  indicatorAtom?: PrimitiveAtom<IndicatorType>;
+  crosshairAtom?: PrimitiveAtom<{ items: { label: string; color: string; value: number }[] } | null>;
+}
 
 const SERIES_META: Record<IndicatorType, { label: string; color: string }[]> = {
   volume: [],
@@ -46,14 +50,14 @@ const SERIES_META: Record<IndicatorType, { label: string; color: string }[]> = {
 
 type ManagedSeries = ISeriesApi<SeriesType>;
 
-function createSeries(chart: IChartApi, indicator: IndicatorType): ManagedSeries[] {
+function createSeries(chart: IChartApi, indicator: IndicatorType, paneIndex: number): ManagedSeries[] {
   switch (indicator) {
     case 'volume': {
       const s = chart.addSeries(HistogramSeries, {
         priceFormat: { type: 'volume', precision: 0 },
         priceLineVisible: false,
         lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       s.priceScale().applyOptions({ scaleMargins: { top: 0, bottom: 0 } });
       return [s];
     }
@@ -61,15 +65,15 @@ function createSeries(chart: IChartApi, indicator: IndicatorType): ManagedSeries
       const dif = chart.addSeries(LineSeries, {
         color: '#00f0ff', lineWidth: 2,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       const dea = chart.addSeries(LineSeries, {
         color: '#f59e0b', lineWidth: 2,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       const macdHist = chart.addSeries(HistogramSeries, {
         priceFormat: { type: 'custom', minMove: 0.0001 },
         priceLineVisible: false, lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       macdHist.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0 } });
       return [dif, dea, macdHist];
     }
@@ -77,15 +81,15 @@ function createSeries(chart: IChartApi, indicator: IndicatorType): ManagedSeries
       const rsi1 = chart.addSeries(LineSeries, {
         color: '#3b82f6', lineWidth: 2,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       const rsi2 = chart.addSeries(LineSeries, {
         color: '#f59e0b', lineWidth: 2,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       const rsi3 = chart.addSeries(LineSeries, {
         color: '#ef4444', lineWidth: 2,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       rsi1.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
       return [rsi1, rsi2, rsi3];
     }
@@ -93,15 +97,15 @@ function createSeries(chart: IChartApi, indicator: IndicatorType): ManagedSeries
       const upper = chart.addSeries(LineSeries, {
         color: '#f59e0b', lineWidth: 1,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       const middle = chart.addSeries(LineSeries, {
         color: '#ffffff', lineWidth: 1,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       const lower = chart.addSeries(LineSeries, {
         color: '#e879f9', lineWidth: 1,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       upper.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
       return [upper, middle, lower];
     }
@@ -109,25 +113,29 @@ function createSeries(chart: IChartApi, indicator: IndicatorType): ManagedSeries
       const k = chart.addSeries(LineSeries, {
         color: '#3b82f6', lineWidth: 2,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       const d = chart.addSeries(LineSeries, {
         color: '#f59e0b', lineWidth: 2,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       const j = chart.addSeries(LineSeries, {
         color: '#ef4444', lineWidth: 2,
         crosshairMarkerVisible: false, priceLineVisible: false, lastValueVisible: false,
-      }, INDICATOR_PANE);
+      }, paneIndex);
       k.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
       return [k, d, j];
     }
   }
 }
 
-export function IndicatorChart() {
+export function IndicatorChart({ 
+  paneIndex = 1, 
+  indicatorAtom = activeIndicatorAtom,
+  crosshairAtom = crosshairIndicatorAtom
+}: IndicatorChartProps) {
   const chart = useAtomValue(chartApiAtom);
 
-  const activeIndicator = useAtomValue(activeIndicatorAtom);
+  const activeIndicator = useAtomValue(indicatorAtom);
   const volumeData = useAtomValue(displayVolumeAtom);
   const macdData = useAtomValue(displayMacdAtom);
   const rsiData = useAtomValue(displayRsiAtom);
@@ -136,7 +144,7 @@ export function IndicatorChart() {
 
   const seriesListRef = useRef<ManagedSeries[]>([]);
   const activeRef = useRef<IndicatorType | null>(null);
-  const setCrosshairIndicator = useSetAtom(crosshairIndicatorAtom);
+  const setCrosshairIndicator = useSetAtom(crosshairAtom);
 
   // Subscribe crosshair to publish indicator values for the overlay
   const handleCrosshairMove = useCallback((param: { seriesData: Map<unknown, unknown> }) => {
@@ -172,17 +180,17 @@ export function IndicatorChart() {
     // If indicator changed, remove old series and create new ones
     if (activeRef.current !== activeIndicator) {
       if (activeRef.current !== null) {
-        // Mark pane 1 as preserved before removing series so it doesn't get destroyed
+        // Mark pane as preserved before removing series so it doesn't get destroyed
         const panes = chart.panes();
-        if (panes.length > 1) {
-          panes[1].setPreserveEmptyPane(true);
+        if (panes.length > paneIndex) {
+          panes[paneIndex].setPreserveEmptyPane(true);
         }
       }
 
       for (const s of seriesListRef.current) {
         try { chart.removeSeries(s); } catch { /* already removed */ }
       }
-      seriesListRef.current = createSeries(chart, activeIndicator);
+      seriesListRef.current = createSeries(chart, activeIndicator, paneIndex);
       activeRef.current = activeIndicator;
     }
 
@@ -226,7 +234,7 @@ export function IndicatorChart() {
         series[2].setData(kdjData.map(d => ({ time: d.time, value: d.j })));
         break;
     }
-  }, [chart, activeIndicator, volumeData, macdData, rsiData, bollData, kdjData]);
+  }, [chart, activeIndicator, volumeData, macdData, rsiData, bollData, kdjData, paneIndex]);
 
   // Cleanup when chart goes away
   useEffect(() => {
@@ -236,6 +244,6 @@ export function IndicatorChart() {
     };
   }, [chart]);
 
-  // No DOM — renders into the shared chart's pane 1
+  // No DOM — renders into the shared chart's pane
   return null;
 }

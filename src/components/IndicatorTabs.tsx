@@ -1,4 +1,4 @@
-import { useAtom } from 'jotai';
+import { useAtom, type PrimitiveAtom } from 'jotai';
 import { activeIndicatorAtom } from '../store/trainingAtoms';
 import type { IndicatorType } from '../types';
 
@@ -10,8 +10,12 @@ const OPTIONS: { value: IndicatorType; label: string }[] = [
   { value: 'kdj', label: 'KDJ' },
 ];
 
-export function IndicatorTabs() {
-  const [active, setActive] = useAtom(activeIndicatorAtom);
+interface IndicatorTabsProps {
+  indicatorAtom?: PrimitiveAtom<IndicatorType>;
+}
+
+export function IndicatorTabs({ indicatorAtom = activeIndicatorAtom }: IndicatorTabsProps) {
+  const [active, setActive] = useAtom(indicatorAtom);
 
   return (
     <select

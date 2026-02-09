@@ -28,6 +28,7 @@ export const predictionAtom = atom<'up' | 'down' | null>(null);
 export const currentPriceAtom = atom<number>(0);
 export const priceChangeAtom = atom<number>(0);
 export const activeIndicatorAtom = atom<IndicatorType>('volume');
+export const activeIndicatorAtom2 = atom<IndicatorType>('macd');
 export const isLoadingAtom = atom<boolean>(false);
 export const errorAtom = atom<string | null>(null);
 

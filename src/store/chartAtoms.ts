@@ -30,3 +30,6 @@ export interface CrosshairIndicatorData {
 }
 
 export const crosshairIndicatorAtom = atom<CrosshairIndicatorData | null>(null);
+
+// Indicator values for the second indicator (pane 2)
+export const crosshairIndicatorAtom2 = atom<CrosshairIndicatorData | null>(null);

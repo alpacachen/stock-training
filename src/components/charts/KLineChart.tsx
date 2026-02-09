@@ -10,8 +10,8 @@ import {
   type Time,
 } from 'lightweight-charts';
 import { useChart } from '../../hooks/useChart';
-import { displayKLineAtom, displayMaAtom, totalBarsAtom, maskIndexAtom, showResultAtom } from '../../store/trainingAtoms';
-import { crosshairBarAtom, crosshairMaAtom, crosshairIndicatorAtom } from '../../store/chartAtoms';
+import { displayKLineAtom, displayMaAtom, totalBarsAtom, maskIndexAtom, showResultAtom, activeIndicatorAtom, activeIndicatorAtom2 } from '../../store/trainingAtoms';
+import { crosshairBarAtom, crosshairMaAtom, crosshairIndicatorAtom, crosshairIndicatorAtom2 } from '../../store/chartAtoms';
 import { OhlcOverlay } from './OhlcOverlay';
 import { IndicatorTabs } from '../IndicatorTabs';
 import { IndicatorChart } from './IndicatorChart';
@@ -35,6 +35,7 @@ export function KLineChart() {
   const setCrosshairBar = useSetAtom(crosshairBarAtom);
   const setCrosshairMa = useSetAtom(crosshairMaAtom);
   const crosshairIndicator = useAtomValue(crosshairIndicatorAtom);
+  const crosshairIndicator2 = useAtomValue(crosshairIndicatorAtom2);
 
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
@@ -43,16 +44,19 @@ export function KLineChart() {
   const ma20Ref = useRef<ISeriesApi<'Line'> | null>(null);
   const prevTotalBarsRef = useRef<number>(0);
   const displayDataRef = useRef(displayData);
-  displayDataRef.current = displayData;
-  const [indicatorTop, setIndicatorTop] = useState<number | null>(null);
+  const [indicatorTop1, setIndicatorTop1] = useState<number | null>(null);
+  const [indicatorTop2, setIndicatorTop2] = useState<number | null>(null);
 
-  // Track pane 0 height changes to position indicator tabs near the separator
-  const updateIndicatorTop = useCallback(() => {
+  // Track pane height changes to position indicator tabs near the separators
+  const updateIndicatorTops = useCallback(() => {
     const chart = chartRef.current;
     if (!chart) return;
     const panes = chart.panes();
     if (panes.length > 1) {
-      setIndicatorTop(panes[0].getHeight() + 4);
+      setIndicatorTop1(panes[0].getHeight() + 4);
+    }
+    if (panes.length > 2) {
+      setIndicatorTop2(panes[0].getHeight() + panes[1].getHeight() + 8);
     }
   }, [chartRef]);
 
@@ -111,11 +115,11 @@ export function KLineChart() {
     const container = containerRef.current;
     let observer: MutationObserver | null = null;
     if (container) {
-      observer = new MutationObserver(updateIndicatorTop);
+      observer = new MutationObserver(updateIndicatorTops);
       observer.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
     }
     // Initial position update
-    requestAnimationFrame(updateIndicatorTop);
+    requestAnimationFrame(updateIndicatorTops);
 
     return () => {
       observer?.disconnect();
@@ -127,10 +131,13 @@ export function KLineChart() {
       ma10Ref.current = null;
       ma20Ref.current = null;
     };
-  }, [chartRef, setCrosshairBar, setCrosshairMa, containerRef, updateIndicatorTop]);
+  }, [chartRef, setCrosshairBar, setCrosshairMa, containerRef, updateIndicatorTops]);
 
   // Update data + manage visible range
   useEffect(() => {
+    // Update ref to current display data for crosshair handler
+    displayDataRef.current = displayData;
+    
     const chart = chartRef.current;
     if (!chart || !seriesRef.current || !ma5Ref.current || !ma10Ref.current || !ma20Ref.current) return;
 
@@ -202,16 +209,16 @@ export function KLineChart() {
       <div ref={containerRef} className="w-full h-full" />
       {/* OHLC overlay on K-line pane */}
       <OhlcOverlay />
-      {/* Indicator tabs overlay on indicator pane, positioned near separator */}
-      {indicatorTop !== null && (
+      {/* First indicator tabs overlay */}
+      {indicatorTop1 !== null && (
         <>
-          <div className="absolute left-2 z-10" style={{ top: indicatorTop }}>
-            <IndicatorTabs />
+          <div className="absolute left-2 z-10" style={{ top: indicatorTop1 }}>
+            <IndicatorTabs indicatorAtom={activeIndicatorAtom} />
           </div>
           {crosshairIndicator && (
             <div
               className="absolute right-14 z-10 flex items-center gap-3 text-xs font-mono pointer-events-none"
-              style={{ top: indicatorTop }}
+              style={{ top: indicatorTop1 }}
             >
               {crosshairIndicator.items.map(({ label, color, value }) => (
                 <span key={label}>
@@ -223,8 +230,30 @@ export function KLineChart() {
           )}
         </>
       )}
-      {/* Headless: manages series in pane 1 */}
-      <IndicatorChart />
+      {/* Second indicator tabs overlay */}
+      {indicatorTop2 !== null && (
+        <>
+          <div className="absolute left-2 z-10" style={{ top: indicatorTop2 }}>
+            <IndicatorTabs indicatorAtom={activeIndicatorAtom2} />
+          </div>
+          {crosshairIndicator2 && (
+            <div
+              className="absolute right-14 z-10 flex items-center gap-3 text-xs font-mono pointer-events-none"
+              style={{ top: indicatorTop2 }}
+            >
+              {crosshairIndicator2.items.map(({ label, color, value }) => (
+                <span key={label}>
+                  <span className="text-white/60">{label}</span>{' '}
+                  <span style={{ color }}>{value.toFixed(2)}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {/* Headless: manages series in pane 1 and pane 2 */}
+      <IndicatorChart paneIndex={1} indicatorAtom={activeIndicatorAtom} crosshairAtom={crosshairIndicatorAtom} />
+      <IndicatorChart paneIndex={2} indicatorAtom={activeIndicatorAtom2} crosshairAtom={crosshairIndicatorAtom2} />
     </div>
   );
 }
