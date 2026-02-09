@@ -13,6 +13,7 @@
     "fetch-stocks": "node scripts/fetch-sse-stocks.js"
   },
   "dependencies": {
+    "@vercel/analytics": "^1.6.1",
     "clsx": "^2.1.1",
     "jotai": "^2.17.1",
     "lightweight-charts": "^5.1.0",
