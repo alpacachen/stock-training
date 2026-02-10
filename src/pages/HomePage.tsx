@@ -1,5 +1,5 @@
 import { useLocation } from 'wouter';
-import { TrendingUp, Target, BarChart3, Zap, ChevronRight } from 'lucide-react';
+import { TrendingUp, Target, BarChart3, Zap, ChevronRight, Flame } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 
@@ -43,14 +43,25 @@ export function HomePage() {
             从500天数据中随机选取点位，挑战你的预测准确率。
           </p>
 
-          <Button
-            size="lg"
-            onClick={() => setLocation('/training')}
-            className="glow-primary text-lg px-10 py-4"
-          >
-            开始训练
-            <ChevronRight className="w-5 h-5 ml-2 inline-block" />
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button
+              size="lg"
+              onClick={() => setLocation('/training')}
+              className="glow-primary text-lg px-10 py-4"
+            >
+              开始训练
+              <ChevronRight className="w-5 h-5 ml-2 inline-block" />
+            </Button>
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={() => setLocation('/hot')}
+              className="text-lg px-10 py-4"
+            >
+              <Flame className="w-5 h-5 mr-2 text-orange-500" />
+              热榜股票
+            </Button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 mt-32">

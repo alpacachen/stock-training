@@ -15,11 +15,25 @@ interface KLineDataPoint {
   volume: number;
 }
 
+export interface HotStock {
+  code: string;
+  name: string;
+  rank: number;
+  market: string;
+}
+
+export interface HotStocksResponse {
+  data: HotStock[];
+  total: number;
+}
+
+const API_BASE_URL = 'https://stock-server-eta.vercel.app/api/stock';
+
 export async function fetchStockKLine(
   code: string,
   days: number = 500
 ): Promise<KLineData[]> {
-  const response = await fetch(`https://stock-server-eta.vercel.app/api/stock/kline?code=${code}&days=${days}`);
+  const response = await fetch(`${API_BASE_URL}/kline?code=${encodeURIComponent(code)}&days=${days}`);
 
   if (!response.ok) {
     const error = await response.json();
@@ -36,4 +50,19 @@ export async function fetchStockKLine(
     close: item.close,
     volume: item.volume,
   }));
+}
+
+/**
+ * 获取热门股票排行榜
+ * @param limit 返回数量，默认100
+ */
+export async function fetchHotStocks(limit: number = 100): Promise<HotStocksResponse> {
+  const response = await fetch(`${API_BASE_URL}/hot?limit=${limit}`);
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || '获取热门股票失败');
+  }
+
+  return response.json();
 }
